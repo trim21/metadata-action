@@ -1,8 +1,14 @@
+import * as fs from 'node:fs/promises';
+
 import * as core from '@actions/core';
-import {Context} from '@actions/github/lib/context';
+import {Context as GithubContext} from '@actions/github/lib/context';
 import {Util} from '@docker/actions-toolkit/lib/util';
 import {Git} from '@docker/actions-toolkit/lib/git';
 import {GitHub} from '@docker/actions-toolkit/lib/github';
+
+export interface Context extends GithubContext {
+  commitDate: Date;
+}
 
 export interface Inputs {
   context: ContextSource;
@@ -42,7 +48,7 @@ export enum ContextSource {
 export async function getContext(source: ContextSource): Promise<Context> {
   switch (source) {
     case ContextSource.workflow:
-      return getContextFromWorkflow();
+      return await getContextFromWorkflow();
     case ContextSource.git:
       return await getContextFromGit();
     default:
@@ -50,7 +56,7 @@ export async function getContext(source: ContextSource): Promise<Context> {
   }
 }
 
-function getContextFromWorkflow(): Context {
+async function getContextFromWorkflow(): Promise<Context> {
   const context = GitHub.context;
 
   // Needs to override Git reference with pr ref instead of upstream branch ref
@@ -69,9 +75,28 @@ function getContextFromWorkflow(): Context {
     }
   }
 
-  return context;
+  return {
+    commitDate: await getCommitDateFromWorkflow(),
+    ...context
+  } as Context;
 }
 
 async function getContextFromGit(): Promise<Context> {
-  return await Git.context();
+  const ctx = await Git.context();
+
+  return {
+    commitDate: await Git.commitDate(ctx.sha),
+    ...ctx
+  } as Context;
+}
+
+async function getCommitDateFromWorkflow(): Promise<Date> {
+  const event = JSON.stringify(await fs.readFile(process.env.GITHUB_EVENT_PATH!, 'utf-8')) as unknown as {commits: Array<{timestamp: string}>};
+
+  let commitDate = event.commits[0].timestamp;
+  if (!commitDate) {
+    throw new Error('failed to get commit date from event');
+  }
+
+  return new Date(commitDate);
 }

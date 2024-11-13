@@ -3,8 +3,9 @@ import * as core from '@actions/core';
 import * as actionsToolkit from '@docker/actions-toolkit';
 import {Toolkit} from '@docker/actions-toolkit/lib/toolkit';
 
-import {getContext, getInputs, Inputs} from './context';
+import {ContextSource, getContext, getInputs, Inputs} from './context';
 import {Meta, Version} from './meta';
+import {Git} from '@docker/actions-toolkit/lib/git';
 
 actionsToolkit.run(
   // main
