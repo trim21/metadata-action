@@ -76,7 +76,7 @@ async function getContextFromWorkflow(): Promise<Context> {
   }
 
   return {
-    commitDate: await getCommitDateFromWorkflow(),
+    commitDate: await getCommitDateFromWorkflow(context.sha),
     ...context
   } as Context;
 }
@@ -90,7 +90,8 @@ async function getContextFromGit(): Promise<Context> {
   } as Context;
 }
 
-async function getCommitDateFromWorkflow(): Promise<Date> {
+async function getCommitDateFromWorkflow(sha: string): Promise<Date> {
+  console.log(sha);
   const eventFile = await fs.readFile(process.env.GITHUB_EVENT_PATH!, 'utf-8');
 
   console.log(eventFile);
