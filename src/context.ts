@@ -91,7 +91,11 @@ async function getContextFromGit(): Promise<Context> {
 }
 
 async function getCommitDateFromWorkflow(): Promise<Date> {
-  const event = JSON.stringify(await fs.readFile(process.env.GITHUB_EVENT_PATH!, 'utf-8')) as unknown as {commits: Array<{timestamp: string}>};
+  const eventFile = await fs.readFile(process.env.GITHUB_EVENT_PATH!, 'utf-8');
+
+  console.log(eventFile);
+
+  const event = JSON.stringify(eventFile) as unknown as {commits: Array<{timestamp: string}>};
 
   const commitDate = event.commits[0].timestamp;
   if (!commitDate) {
