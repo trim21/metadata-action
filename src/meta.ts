@@ -5,15 +5,15 @@ import moment from 'moment-timezone';
 import * as pep440 from '@renovate/pep440';
 import * as semver from 'semver';
 import * as core from '@actions/core';
-import { Context } from '@actions/github/lib/context';
-import { Context as ToolkitContext } from '@docker/actions-toolkit/lib/context';
-import { GitHubRepo } from '@docker/actions-toolkit/lib/types/github';
+import {Context} from '@actions/github/lib/context';
+import {Context as ToolkitContext} from '@docker/actions-toolkit/lib/context';
+import {GitHubRepo} from '@docker/actions-toolkit/lib/types/github';
 
-import { Inputs } from './context';
+import {Inputs} from './context';
 import * as icl from './image';
 import * as tcl from './tag';
 import * as fcl from './flavor';
-import { Git } from '@docker/actions-toolkit/lib/git';
+import {Git} from '@docker/actions-toolkit/lib/git';
 
 const defaultShortShaLength = 12;
 
@@ -48,7 +48,7 @@ export class Meta {
   }
 
   private async getCommitDate(rev: string): Promise<Date> {
-    return await Git.commitDate(rev)
+    return await Git.commitDate(rev);
   }
 
   private getVersion(): Version {
@@ -606,7 +606,7 @@ export class Meta {
 
   private generateBakeFile(dt, suffix?: string): string {
     const bakeFile = path.join(ToolkitContext.tmpDir(), `docker-metadata-action-bake${suffix ? `-${suffix}` : ''}.json`);
-    fs.writeFileSync(bakeFile, JSON.stringify({ target: { [this.inputs.bakeTarget]: dt } }, null, 2));
+    fs.writeFileSync(bakeFile, JSON.stringify({target: {[this.inputs.bakeTarget]: dt}}, null, 2));
     return bakeFile;
   }
 
