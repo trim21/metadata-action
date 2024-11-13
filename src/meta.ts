@@ -5,14 +5,15 @@ import moment from 'moment-timezone';
 import * as pep440 from '@renovate/pep440';
 import * as semver from 'semver';
 import * as core from '@actions/core';
-import {Context} from '@actions/github/lib/context';
-import {Context as ToolkitContext} from '@docker/actions-toolkit/lib/context';
-import {GitHubRepo} from '@docker/actions-toolkit/lib/types/github';
+import { Context } from '@actions/github/lib/context';
+import { Context as ToolkitContext } from '@docker/actions-toolkit/lib/context';
+import { GitHubRepo } from '@docker/actions-toolkit/lib/types/github';
 
-import {Inputs} from './context';
+import { Inputs } from './context';
 import * as icl from './image';
 import * as tcl from './tag';
 import * as fcl from './flavor';
+import { Git } from '@docker/actions-toolkit/lib/git';
 
 const defaultShortShaLength = 12;
 
@@ -32,6 +33,7 @@ export class Meta {
   private readonly tags: tcl.Tag[];
   private readonly flavor: fcl.Flavor;
   private readonly date: Date;
+  private readonly commit_date: Promise<Date>;
 
   constructor(inputs: Inputs, context: Context, repo: GitHubRepo) {
     this.inputs = inputs;
@@ -42,6 +44,11 @@ export class Meta {
     this.flavor = fcl.Transform(inputs.flavor);
     this.date = new Date();
     this.version = this.getVersion();
+    this.commit_date = this.getCommitDate(this.context.sha);
+  }
+
+  private async getCommitDate(rev: string): Promise<Date> {
+    return await Git.commitDate(rev)
   }
 
   private getVersion(): Version {
@@ -361,6 +368,7 @@ export class Meta {
   private setGlobalExp(val): string {
     const context = this.context;
     const currentDate = this.date;
+    const commitDate = this.commit_date;
     return handlebars.compile(val)({
       branch: function () {
         if (!/^refs\/heads\//.test(context.ref)) {
@@ -387,6 +395,20 @@ export class Meta {
           return context.payload.pull_request.base.ref;
         }
         return '';
+      },
+      commit_date: function (format, options) {
+        const m = moment(commitDate);
+        let tz = 'UTC';
+        Object.keys(options.hash).forEach(key => {
+          switch (key) {
+            case 'tz':
+              tz = options.hash[key];
+              break;
+            default:
+              throw new Error(`Unknown ${key} attribute`);
+          }
+        });
+        return m.tz(tz).format(format);
       },
       is_default_branch: function () {
         const branch = context.ref.replace(/^refs\/heads\//g, '');
@@ -584,7 +606,7 @@ export class Meta {
 
   private generateBakeFile(dt, suffix?: string): string {
     const bakeFile = path.join(ToolkitContext.tmpDir(), `docker-metadata-action-bake${suffix ? `-${suffix}` : ''}.json`);
-    fs.writeFileSync(bakeFile, JSON.stringify({target: {[this.inputs.bakeTarget]: dt}}, null, 2));
+    fs.writeFileSync(bakeFile, JSON.stringify({ target: { [this.inputs.bakeTarget]: dt } }, null, 2));
     return bakeFile;
   }
 
