@@ -31,8 +31,16 @@ beforeEach(() => {
       delete process.env[key];
     }
   });
+
   jest.spyOn(GitHub, 'context', 'get').mockImplementation((): Context => {
-    return new Context();
+    //@ts-expect-error partial info
+    return {
+      ...new Context(),
+      repo: {
+        owner: 'docker',
+        repo: 'repo'
+      }
+    };
   });
 });
 
@@ -53,7 +61,7 @@ const tagsLabelsTest = async (name: string, envFile: string, inputs: Inputs, exV
   process.env = dotenv.parse(fs.readFileSync(path.join(__dirname, 'fixtures', envFile)));
   const toolkit = new Toolkit();
   const repo = await toolkit.github.repoData();
-  const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow), repo);
+  const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow, toolkit), repo);
 
   const version = meta.version;
   expect(version).toEqual(exVersion);
@@ -622,6 +630,7 @@ describe('push', () => {
         tags: [
           `type=raw,value=mytag-{{branch}}`,
           `type=raw,value=mytag-{{date 'YYYYMMDD'}}`,
+          `type=raw,value=mytag-cd-{{commit_date 'YYYYMMDD'}}`,
           `type=raw,value=mytag-{{date 'YYYYMMDD-HHmmss' tz='Asia/Tokyo'}}`,
           `type=raw,value=mytag-tag-{{tag}}`,
           `type=raw,value=mytag-baseref-{{base_ref}}`,
@@ -632,6 +641,7 @@ describe('push', () => {
         main: 'mytag-master',
         partial: [
           'mytag-20200110',
+          "mytag-cd-20200110",
           'mytag-20200110-093000',
           'mytag-tag-',
           'mytag-baseref-',
@@ -642,6 +652,7 @@ describe('push', () => {
       [
         'user/app:mytag-master',
         'user/app:mytag-20200110',
+        'user/app:mytag-cd-20200110',
         'user/app:mytag-20200110-093000',
         'user/app:mytag-tag-',
         'user/app:mytag-baseref-',
@@ -2975,7 +2986,7 @@ describe('pr-head-sha', () => {
 
     const toolkit = new Toolkit();
     const repo = await toolkit.github.repoData();
-    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow), repo);
+    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow, toolkit), repo);
 
     const version = meta.version;
     expect(version).toEqual(exVersion);
@@ -4012,7 +4023,7 @@ describe('json', () => {
 
     const toolkit = new Toolkit();
     const repo = await toolkit.github.repoData();
-    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow), repo);
+    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow,toolkit), repo);
 
     const jsonOutput = meta.getJSON(['manifest']);
     expect(jsonOutput).toEqual(exJSON);
@@ -4528,7 +4539,7 @@ describe('bakeFile', () => {
 
     const toolkit = new Toolkit();
     const repo = await toolkit.github.repoData();
-    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow), repo);
+    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow,toolkit), repo);
 
     const bakeFileTags = meta.getBakeFile('tags');
     expect(JSON.parse(fs.readFileSync(bakeFileTags, 'utf8'))).toEqual(exBakeTags);
@@ -4592,7 +4603,7 @@ describe('bakeFileTagsLabels', () => {
 
     const toolkit = new Toolkit();
     const repo = await toolkit.github.repoData();
-    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow), repo);
+    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow,toolkit), repo);
 
     const bakeFile = meta.getBakeFileTagsLabels();
     expect(JSON.parse(fs.readFileSync(bakeFile, 'utf8'))).toEqual(exBakeDefinition);
@@ -4638,8 +4649,10 @@ describe('sepTags', () => {
     process.env = dotenv.parse(fs.readFileSync(path.join(__dirname, 'fixtures', envFile)));
 
     const toolkit = new Toolkit();
+
     const repo = await toolkit.github.repoData();
-    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow), repo);
+
+    const meta = new Meta({...getInputs(), ...inputs}, await getContext(ContextSource.workflow, toolkit), repo);
 
     expect(meta.getTags().join(inputs.sepTags)).toEqual(expTags);
   });
